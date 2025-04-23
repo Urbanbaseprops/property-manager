@@ -13,18 +13,18 @@ export default function Layout() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-64 bg-black text-white p-6 space-y-4 flex flex-col justify-between">
+    <div className="flex min-h-screen bg-gray-100">
+      <aside className="w-64 bg-black text-white p-4 flex flex-col justify-between">
         <div>
           <img
             src="https://lh3.googleusercontent.com/p/AF1QipOKG9CgSDXhZAO8R8o_sXx9765ovXDJ31euRFa_=s680-w680-h510"
             alt="Logo"
-            className="h-8 mb-4 rounded"
+            className="h-10 mb-4 mx-auto rounded"
           />
-          <nav className="space-y-3">
-            <Link to="/dashboard" className="block text-blue-400 hover:text-white">🏠 Dashboard</Link>
-            <Link to="/properties" className="block text-blue-400 hover:text-white">📋 Properties</Link>
-            <Link to="/repairs" className="block text-blue-400 hover:text-white">🛠 Repairs</Link>
+          <nav className="space-y-2">
+            <Link to="/dashboard" className="block px-3 py-2 rounded hover:bg-blue-700 text-blue-300 hover:text-white">🏠 Dashboard</Link>
+            <Link to="/properties" className="block px-3 py-2 rounded hover:bg-blue-700 text-blue-300 hover:text-white">📋 Properties</Link>
+            <Link to="/repairs" className="block px-3 py-2 rounded hover:bg-blue-700 text-blue-300 hover:text-white">🛠 Repairs</Link>
           </nav>
         </div>
         <button
@@ -35,11 +35,9 @@ export default function Layout() {
         </button>
       </aside>
 
-      <div className="flex-1 bg-gray-100">
-        <main className="p-6 max-w-6xl mx-auto">
-          <Outlet />
-        </main>
-      </div>
+      <main className="flex-1 p-6 overflow-y-auto">
+        <Outlet />
+      </main>
     </div>
   );
 }

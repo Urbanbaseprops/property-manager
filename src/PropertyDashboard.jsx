@@ -23,17 +23,17 @@ export default function PropertyDashboard() {
     setTodayItems(filtered);
   };
 
-  const toggleStatus = async (id, field) => {
+  const toggleStatus = async (id, field, currentValue) => {
     const ref = doc(db, 'properties', id);
     await updateDoc(ref, {
-      [field]: true
+      [field]: !currentValue
     });
     fetchTodayItems();
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">📆 Due Today</h1>
+    <div className="p-6 bg-blue-50 min-h-screen">
+      <h1 className="text-2xl font-bold mb-4 text-blue-800">📆 Due Today</h1>
       {todayItems.length === 0 && (
         <p className="text-gray-600">No rent or payments due today.</p>
       )}
@@ -44,7 +44,7 @@ export default function PropertyDashboard() {
               <div className="mb-4">
                 <div>💰 Rent due from <strong>{item.tenant?.name}</strong> at <strong>{item.name}</strong></div>
                 <button
-                  onClick={() => toggleStatus(item.id, 'tenantPaid')}
+                  onClick={() => toggleStatus(item.id, 'tenantPaid', item.tenantPaid)}
                   className={`mt-2 px-3 py-1 text-white rounded ${item.tenantPaid ? 'bg-green-600' : 'bg-red-600'}`}
                 >
                   {item.tenantPaid ? 'Paid' : 'Mark Paid'}
@@ -55,7 +55,7 @@ export default function PropertyDashboard() {
               <div>
                 <div>💼 Pay <strong>{item.landlord?.name}</strong> £{item.landlordAmount} for <strong>{item.name}</strong></div>
                 <button
-                  onClick={() => toggleStatus(item.id, 'landlordPaid')}
+                  onClick={() => toggleStatus(item.id, 'landlordPaid', item.landlordPaid)}
                   className={`mt-2 px-3 py-1 text-white rounded ${item.landlordPaid ? 'bg-green-600' : 'bg-red-600'}`}
                 >
                   {item.landlordPaid ? 'Paid' : 'Mark Paid'}
