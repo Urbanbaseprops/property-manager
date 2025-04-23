@@ -1,4 +1,4 @@
-// force update for Git
+// Updated sidebar version with logo + logout
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { db } from './firebase';
