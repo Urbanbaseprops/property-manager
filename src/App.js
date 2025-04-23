@@ -1,11 +1,13 @@
+// src/App.js
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 import Login from './Login';
-import Layout from './Layout';
 import PropertyDashboard from './PropertyDashboard';
 import Properties from './Properties';
+import Repairs from './Repairs';
+import Layout from './Layout';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -28,12 +30,11 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        {user && (
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<PropertyDashboard />} />
-            <Route path="/properties" element={<Properties />} />
-          </Route>
-        )}
+        <Route element={user ? <Layout /> : <Navigate to="/login" />}>
+          <Route path="/dashboard" element={<PropertyDashboard />} />
+          <Route path="/properties" element={<Properties />} />
+          <Route path="/repairs" element={<Repairs />} />
+        </Route>
         <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} />} />
       </Routes>
     </Router>
