@@ -1,106 +1,69 @@
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
 import { db } from './firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import { Link, useNavigate } from 'react-router-dom';
-import { getAuth, signOut } from 'firebase/auth';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 
 export default function PropertyDashboard() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [dueToday, setDueToday] = useState([]);
-  const [landlordDueToday, setLandlordDueToday] = useState([]);
-  const [filter, setFilter] = useState('all');
-  const [properties, setProperties] = useState([]);
-  const [newProperty, setNewProperty] = useState({
-    name: '',
-    rent: '',
-    rentDueDate: '',
-    landlordPaymentDueDate: '',
-    landlordAmount: '',
-    landlord: { name: '', email: '', phone: '' },
-    tenant: { name: '' },
-    inspectionDate: '',
-    certificates: [],
-    notes: ''
-  });
-
-  const navigate = useNavigate();
-  const auth = getAuth();
-
-  const handleLogout = () => {
-    signOut(auth).then(() => {
-      navigate('/login');
-    });
-  };
+  const [todayItems, setTodayItems] = useState([]);
 
   useEffect(() => {
-    fetchProperties();
+    fetchTodayItems();
   }, []);
 
-  useEffect(() => {
-    filterByDate(selectedDate);
-  }, [selectedDate, properties]);
+  const fetchTodayItems = async () => {
+    const now = new Date();
+    const today = now.getDate();
 
-  const fetchProperties = async () => {
-    const querySnapshot = await getDocs(collection(db, "properties"));
-    const propertyList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setProperties(propertyList);
-  };
+    const querySnapshot = await getDocs(collection(db, 'properties'));
+    const allProperties = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-  const addProperty = async () => {
-    if (!newProperty.name || !newProperty.rent) return;
-
-    try {
-      const docRef = await addDoc(collection(db, "properties"), newProperty);
-      setProperties(prev => [...prev, { id: docRef.id, ...newProperty }]);
-    } catch (err) {
-      console.error("Error saving to Firestore:", err);
-    }
-
-    setNewProperty({
-      name: '', rent: '', rentDueDate: '', landlordPaymentDueDate: '', landlordAmount: '',
-      landlord: { name: '', email: '', phone: '' }, tenant: { name: '' },
-      inspectionDate: '', certificates: [], notes: ''
-    });
-  };
-
-  const deleteProperty = async (id) => {
-    await deleteDoc(doc(db, "properties", id));
-    setProperties(prev => prev.filter(p => p.id !== id));
-  };
-
-  const filterByDate = (date) => {
-    const day = date.getDate().toString();
-    const rentDue = properties.filter(prop => prop.rentDueDate.toString() === day);
-    const landlordPayments = properties.filter(prop => prop.landlordPaymentDueDate.toString() === day);
-    setDueToday(rentDue);
-    setLandlordDueToday(landlordPayments);
-  };
-
-  const toggleStatus = (id, field) => {
-    const updated = properties.map(p =>
-      p.id === id ? { ...p, [field]: !p[field] } : p
+    const filtered = allProperties.filter(item =>
+      parseInt(item.rentDueDate) === today || parseInt(item.landlordPaymentDueDate) === today
     );
-    setProperties(updated);
+
+    setTodayItems(filtered);
+  };
+
+  const toggleStatus = async (id, field) => {
+    const ref = doc(db, 'properties', id);
+    await updateDoc(ref, {
+      [field]: true
+    });
+    fetchTodayItems();
   };
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-64 bg-black text-white p-6 space-y-4 flex flex-col justify-between">
-        <div>
-          <img src="https://lh3.googleusercontent.com/p/AF1QipOKG9CgSDXhZAO8R8o_sXx9765ovXDJ31euRFa_=s680-w680-h510" alt="Logo" className="h-12 mb-6 rounded" />
-          <nav className="space-y-3">
-            <Link to="/dashboard" className="block text-blue-400 hover:text-white">🏠 Dashboard</Link>
-            <Link to="/properties" className="block text-blue-400 hover:text-white">📋 Properties</Link>
-          </nav>
-        </div>
-        <button onClick={handleLogout} className="mt-6 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded">Logout</button>
-      </aside>
-
-      <div className="flex-1 bg-gray-100">
-        <main className="p-6 max-w-6xl mx-auto">
-          {/* Content stays the same */}
-        </main>
+    <div>
+      <h1 className="text-2xl font-bold mb-4">📆 Due Today</h1>
+      {todayItems.length === 0 && (
+        <p className="text-gray-600">No rent or payments due today.</p>
+      )}
+      <div className="space-y-4">
+        {todayItems.map((item) => (
+          <div key={item.id} className="bg-white p-4 rounded shadow">
+            {parseInt(item.rentDueDate) === new Date().getDate() && (
+              <div className="mb-4">
+                <div>💰 Rent due from <strong>{item.tenant?.name}</strong> at <strong>{item.name}</strong></div>
+                <button
+                  onClick={() => toggleStatus(item.id, 'tenantPaid')}
+                  className={`mt-2 px-3 py-1 text-white rounded ${item.tenantPaid ? 'bg-green-600' : 'bg-red-600'}`}
+                >
+                  {item.tenantPaid ? 'Paid' : 'Mark Paid'}
+                </button>
+              </div>
+            )}
+            {parseInt(item.landlordPaymentDueDate) === new Date().getDate() && (
+              <div>
+                <div>💼 Pay <strong>{item.landlord?.name}</strong> £{item.landlordAmount} for <strong>{item.name}</strong></div>
+                <button
+                  onClick={() => toggleStatus(item.id, 'landlordPaid')}
+                  className={`mt-2 px-3 py-1 text-white rounded ${item.landlordPaid ? 'bg-green-600' : 'bg-red-600'}`}
+                >
+                  {item.landlordPaid ? 'Paid' : 'Mark Paid'}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
