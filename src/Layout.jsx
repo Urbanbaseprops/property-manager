@@ -1,44 +1,43 @@
-import React from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { getAuth, signOut } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
-export default function Layout() {
-  const navigate = useNavigate();
+import Login from './Login';
+import Layout from './Layout';
+import PropertyDashboard from './PropertyDashboard';
+import Properties from './Properties';
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const auth = getAuth();
 
-  const handleLogout = () => {
-    signOut(auth).then(() => {
-      navigate('/login');
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setCheckingAuth(false);
     });
-  };
+    return () => unsubscribe();
+  }, []);
+
+  if (checkingAuth) {
+    return <div className="text-center mt-10 text-lg">Loading...</div>;
+  }
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-64 bg-black text-white p-6 space-y-4 flex flex-col justify-between">
-        <div>
-          <img
-            src="https://lh3.googleusercontent.com/p/AF1QipOKG9CgSDXhZAO8R8o_sXx9765ovXDJ31euRFa_=s680-w680-h510"
-            alt="Logo"
-            className="h-12 mb-6 rounded"
-          />
-          <nav className="space-y-3">
-            <Link to="/dashboard" className="block text-blue-400 hover:text-white">🏠 Dashboard</Link>
-            <Link to="/properties" className="block text-blue-400 hover:text-white">📋 Properties</Link>
-          </nav>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="mt-6 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded"
-        >
-          Logout
-        </button>
-      </aside>
-
-      <div className="flex-1 bg-gray-100">
-        <main className="p-6 max-w-6xl mx-auto">
-          <Outlet />
-        </main>
-      </div>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        {user && (
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<PropertyDashboard />} />
+            <Route path="/properties" element={<Properties />} />
+          </Route>
+        )}
+        <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} />} />
+      </Routes>
+    </Router>
   );
 }
+
+export default App;
