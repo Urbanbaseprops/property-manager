@@ -44,8 +44,4 @@ function App() {
 export default App;
 import Properties from './Properties'; // Add this at the top
 
-<Route
-  path="/properties"
-  element={user ? <Properties /> : <Navigate to="/login" />}
-/>
 
