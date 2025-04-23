@@ -1,4 +1,5 @@
 // src/App.js
+import Properties from './Properties';
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
@@ -25,6 +26,10 @@ function App() {
   return (
     <Router>
       <Routes>
+      <Route
+  path="/properties"
+  element={user ? <Properties /> : <Navigate to="/login" />}
+/>
         <Route path="/login" element={<Login />} />
         <Route
           path="/dashboard"
@@ -37,4 +42,10 @@ function App() {
 }
 
 export default App;
+import Properties from './Properties'; // Add this at the top
+
+<Route
+  path="/properties"
+  element={user ? <Properties /> : <Navigate to="/login" />}
+/>
 
