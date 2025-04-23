@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { db } from './firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import { Link, useNavigate } from 'react-router-dom';
-import { getAuth, signOut } from 'firebase/auth';
 
 export default function PropertyDashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -11,27 +9,6 @@ export default function PropertyDashboard() {
   const [landlordDueToday, setLandlordDueToday] = useState([]);
   const [filter, setFilter] = useState('all');
   const [properties, setProperties] = useState([]);
-  const [newProperty, setNewProperty] = useState({
-    name: '',
-    rent: '',
-    rentDueDate: '',
-    landlordPaymentDueDate: '',
-    landlordAmount: '',
-    landlord: { name: '', email: '', phone: '' },
-    tenant: { name: '' },
-    inspectionDate: '',
-    certificates: [],
-    notes: ''
-  });
-
-  const navigate = useNavigate();
-  const auth = getAuth();
-
-  const handleLogout = () => {
-    signOut(auth).then(() => {
-      navigate('/login');
-    });
-  };
 
   useEffect(() => {
     fetchProperties();
@@ -45,28 +22,6 @@ export default function PropertyDashboard() {
     const querySnapshot = await getDocs(collection(db, "properties"));
     const propertyList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     setProperties(propertyList);
-  };
-
-  const addProperty = async () => {
-    if (!newProperty.name || !newProperty.rent) return;
-
-    try {
-      const docRef = await addDoc(collection(db, "properties"), newProperty);
-      setProperties(prev => [...prev, { id: docRef.id, ...newProperty }]);
-    } catch (err) {
-      console.error("Error saving to Firestore:", err);
-    }
-
-    setNewProperty({
-      name: '', rent: '', rentDueDate: '', landlordPaymentDueDate: '', landlordAmount: '',
-      landlord: { name: '', email: '', phone: '' }, tenant: { name: '' },
-      inspectionDate: '', certificates: [], notes: ''
-    });
-  };
-
-  const deleteProperty = async (id) => {
-    await deleteDoc(doc(db, "properties", id));
-    setProperties(prev => prev.filter(p => p.id !== id));
   };
 
   const filterByDate = (date) => {
@@ -85,23 +40,61 @@ export default function PropertyDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-64 bg-black text-white p-6 space-y-4 flex flex-col justify-between">
-        <div>
-          <img src="https://lh3.googleusercontent.com/p/AF1QipOKG9CgSDXhZAO8R8o_sXx9765ovXDJ31euRFa_=s680-w680-h510" alt="Logo" className="h-12 mb-6 rounded" />
-          <nav className="space-y-3">
-            <Link to="/dashboard" className="block text-blue-400 hover:text-white">🏠 Dashboard</Link>
-            <Link to="/properties" className="block text-blue-400 hover:text-white">📋 Properties</Link>
-          </nav>
-        </div>
-        <button onClick={handleLogout} className="mt-6 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded">Logout</button>
-      </aside>
-
-      <div className="flex-1 bg-gray-100">
-        <main className="p-6 max-w-6xl mx-auto">
-          {/* Content stays the same */}
-        </main>
+    <div>
+      <h1 className="text-2xl font-bold mb-4">📅 Reminders for {format(selectedDate, 'MMMM d')}</h1>
+      <div className="mb-6">
+        <label className="block mb-2 font-medium">Select Date:</label>
+        <input
+          type="date"
+          value={format(selectedDate, 'yyyy-MM-dd')}
+          onChange={(e) => setSelectedDate(new Date(e.target.value))}
+          className="p-2 border rounded"
+        />
       </div>
+
+      {dueToday.length === 0 && landlordDueToday.length === 0 ? (
+        <p>No payments due on this date.</p>
+      ) : (
+        <div className="space-y-6">
+          {dueToday.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-2">💸 Tenant Rent Due</h2>
+              <ul className="space-y-2">
+                {dueToday.map(item => (
+                  <li key={item.id} className="bg-white p-4 rounded shadow flex justify-between items-center">
+                    <div>🏠 <strong>{item.name}</strong> - £{item.rent} from <strong>{item.tenant?.name}</strong></div>
+                    <button
+                      onClick={() => toggleStatus(item.id, 'tenantPaid')}
+                      className={`px-2 py-1 text-white rounded ${item.tenantPaid ? 'bg-green-600' : 'bg-red-600'}`}
+                    >
+                      {item.tenantPaid ? 'Paid' : 'Mark Paid'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {landlordDueToday.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-2">💼 Landlord Payments Due</h2>
+              <ul className="space-y-2">
+                {landlordDueToday.map(item => (
+                  <li key={item.id} className="bg-white p-4 rounded shadow flex justify-between items-center">
+                    <div>💼 Pay <strong>{item.landlord.name}</strong> £{item.landlordAmount} for <strong>{item.name}</strong></div>
+                    <button
+                      onClick={() => toggleStatus(item.id, 'landlordPaid')}
+                      className={`px-2 py-1 text-white rounded ${item.landlordPaid ? 'bg-green-600' : 'bg-red-600'}`}
+                    >
+                      {item.landlordPaid ? 'Paid' : 'Mark Paid'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
