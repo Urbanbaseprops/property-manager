@@ -4,8 +4,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 import Login from './Login';
+import Layout from './Layout';
 import PropertyDashboard from './PropertyDashboard';
-import Properties from './Properties'; // ✅ Only import once
+import Properties from './Properties';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -28,8 +29,12 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={user ? <PropertyDashboard /> : <Navigate to="/login" />} />
-        <Route path="/properties" element={user ? <Properties /> : <Navigate to="/login" />} />
+        {user && (
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<PropertyDashboard />} />
+            <Route path="/properties" element={<Properties />} />
+          </Route>
+        )}
         <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} />} />
       </Routes>
     </Router>
