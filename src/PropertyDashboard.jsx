@@ -1,25 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 
 export default function PropertyDashboard() {
   const [todayItems, setTodayItems] = useState([]);
+  const [allItems, setAllItems] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    fetchTodayItems();
+    fetchItems();
   }, []);
 
-  const fetchTodayItems = async () => {
-    const now = new Date();
-    const today = now.getDate();
+  useEffect(() => {
+    filterItemsByDate(selectedDate);
+  }, [selectedDate, allItems, filter]);
 
+  const fetchItems = async () => {
     const querySnapshot = await getDocs(collection(db, 'properties'));
     const allProperties = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setAllItems(allProperties);
+  };
 
-    const filtered = allProperties.filter(item =>
-      parseInt(item.rentDueDate) === today || parseInt(item.landlordPaymentDueDate) === today
-    );
-
+  const filterItemsByDate = (date) => {
+    const day = date.getDate();
+    const filtered = allItems.filter(item => {
+      const matchRent = parseInt(item.rentDueDate) === day && (filter === 'all' || filter === 'tenant');
+      const matchLandlord = parseInt(item.landlordPaymentDueDate) === day && (filter === 'all' || filter === 'landlord');
+      return matchRent || matchLandlord;
+    });
     setTodayItems(filtered);
   };
 
@@ -28,21 +39,31 @@ export default function PropertyDashboard() {
     await updateDoc(ref, {
       [field]: !currentValue
     });
-    fetchTodayItems();
+    fetchItems();
   };
 
   return (
     <div className="p-6 min-h-screen bg-gray-50">
       <h1 className="text-3xl font-bold mb-6 text-blue-800">📋 Urban Base Properties - Daily Overview</h1>
 
+      <div className="mb-6">
+        <Calendar onChange={setSelectedDate} value={selectedDate} className="rounded shadow border" />
+      </div>
+
+      <div className="flex gap-4 mb-6">
+        <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>All</button>
+        <button onClick={() => setFilter('tenant')} className={`px-4 py-2 rounded ${filter === 'tenant' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Tenants</button>
+        <button onClick={() => setFilter('landlord')} className={`px-4 py-2 rounded ${filter === 'landlord' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Landlords</button>
+      </div>
+
       {todayItems.length === 0 && (
-        <p className="text-gray-600">No rent or payments due today.</p>
+        <p className="text-gray-600">No rent or payments due on selected date.</p>
       )}
 
       <div className="space-y-6">
         {todayItems.map((item) => (
           <div key={item.id} className="bg-white p-4 rounded shadow border">
-            {parseInt(item.rentDueDate) === new Date().getDate() && (
+            {parseInt(item.rentDueDate) === selectedDate.getDate() && (
               <div className="mb-4">
                 <div className="font-medium text-gray-700">
                   💰 Inbound Tenant Payment - <strong>{item.tenant?.name}</strong> at <strong>{item.name}</strong>
@@ -56,7 +77,7 @@ export default function PropertyDashboard() {
               </div>
             )}
 
-            {parseInt(item.landlordPaymentDueDate) === new Date().getDate() && (
+            {parseInt(item.landlordPaymentDueDate) === selectedDate.getDate() && (
               <div>
                 <div className="font-medium text-gray-700">
                   💼 Outgoing Landlord Payment - <strong>{item.landlord?.name}</strong> £{item.landlordAmount} for <strong>{item.name}</strong>

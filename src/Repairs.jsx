@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
-import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc
+} from 'firebase/firestore';
 
 export default function Repairs() {
   const [repairs, setRepairs] = useState([]);
   const [newRepair, setNewRepair] = useState({
     property: '',
-    description: '',
-    allocatedTo: '',
-    status: 'Pending'
+    notes: '',
+    contractor: '',
+    status: 'pending'
   });
-  const [editingRepair, setEditingRepair] = useState(null);
 
   useEffect(() => {
     fetchRepairs();
@@ -22,73 +27,84 @@ export default function Repairs() {
     setRepairs(repairList);
   };
 
-  const addRepair = async () => {
-    if (!newRepair.property || !newRepair.description) return;
-    const docRef = await addDoc(collection(db, 'repairs'), newRepair);
-    setRepairs(prev => [...prev, { id: docRef.id, ...newRepair }]);
-    setNewRepair({ property: '', description: '', allocatedTo: '', status: 'Pending' });
-  };
-
-  const updateStatus = async (id, status) => {
-    await updateDoc(doc(db, 'repairs', id), { status });
+  const handleAddRepair = async () => {
+    if (!newRepair.property || !newRepair.notes) return;
+    await addDoc(collection(db, 'repairs'), newRepair);
+    setNewRepair({ property: '', notes: '', contractor: '', status: 'pending' });
     fetchRepairs();
   };
 
-  const saveEdit = async () => {
-    if (!editingRepair) return;
-    await updateDoc(doc(db, 'repairs', editingRepair.id), editingRepair);
-    setEditingRepair(null);
+  const updateRepair = async (id, field, value) => {
+    const ref = doc(db, 'repairs', id);
+    await updateDoc(ref, { [field]: value });
     fetchRepairs();
   };
 
   return (
-    <div className="bg-blue-50 min-h-screen p-6">
-      <h1 className="text-3xl font-bold text-blue-800 mb-6">🛠 Repairs Log</h1>
+    <div className="p-6 min-h-screen bg-gray-50">
+      <h1 className="text-3xl font-bold mb-6 text-blue-800">🔧 Repair Management</h1>
 
-      <div className="bg-white p-6 rounded-xl shadow mb-10">
-        <h2 className="text-xl font-semibold mb-4">➕ Log New Repair</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input className="p-2 border border-gray-300 rounded" placeholder="Property Address" value={newRepair.property} onChange={(e) => setNewRepair({ ...newRepair, property: e.target.value })} />
-          <input className="p-2 border border-gray-300 rounded" placeholder="Repair Description" value={newRepair.description} onChange={(e) => setNewRepair({ ...newRepair, description: e.target.value })} />
-          <input className="p-2 border border-gray-300 rounded" placeholder="Allocated To" value={newRepair.allocatedTo} onChange={(e) => setNewRepair({ ...newRepair, allocatedTo: e.target.value })} />
-        </div>
-        <button onClick={addRepair} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded">
-          Save Repair
+      <div className="bg-white p-4 rounded shadow mb-8">
+        <h2 className="text-xl font-semibold mb-4">Add New Repair</h2>
+        <input
+          type="text"
+          placeholder="Property Address"
+          className="border p-2 mb-2 w-full"
+          value={newRepair.property}
+          onChange={(e) => setNewRepair({ ...newRepair, property: e.target.value })}
+        />
+        <textarea
+          placeholder="Repair Notes"
+          className="border p-2 mb-2 w-full"
+          value={newRepair.notes}
+          onChange={(e) => setNewRepair({ ...newRepair, notes: e.target.value })}
+        />
+        <input
+          type="text"
+          placeholder="Assigned Contractor"
+          className="border p-2 mb-2 w-full"
+          value={newRepair.contractor}
+          onChange={(e) => setNewRepair({ ...newRepair, contractor: e.target.value })}
+        />
+        <select
+          className="border p-2 mb-2 w-full"
+          value={newRepair.status}
+          onChange={(e) => setNewRepair({ ...newRepair, status: e.target.value })}
+        >
+          <option value="pending">Pending</option>
+          <option value="in progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+        <button onClick={handleAddRepair} className="bg-blue-600 text-white px-4 py-2 rounded">
+          Add Repair
         </button>
       </div>
 
-      <h2 className="text-2xl font-bold text-blue-800 mb-4">📋 Repairs List</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {repairs.map(repair => (
-          <div key={repair.id} className="bg-white border p-4 rounded shadow">
-            <h3 className="text-lg font-semibold text-blue-700">{repair.property}</h3>
-            <p className="mb-1"><strong>Description:</strong> {repair.description}</p>
-            <p className="mb-1"><strong>Allocated To:</strong> {repair.allocatedTo}</p>
-            <div className="flex flex-wrap gap-2 mt-2 items-center">
-              <span className={`px-3 py-1 rounded-full text-sm text-white ${repair.status === 'Completed' ? 'bg-green-600' : repair.status === 'Outstanding' ? 'bg-red-500' : 'bg-yellow-500'}`}>{repair.status}</span>
-              <button onClick={() => updateStatus(repair.id, 'Pending')} className="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Pending</button>
-              <button onClick={() => updateStatus(repair.id, 'Outstanding')} className="bg-red-500 text-white px-2 py-1 rounded text-xs">Outstanding</button>
-              <button onClick={() => updateStatus(repair.id, 'Completed')} className="bg-green-600 text-white px-2 py-1 rounded text-xs">Completed</button>
-              <button onClick={() => setEditingRepair(repair)} className="bg-blue-500 text-white px-2 py-1 rounded text-xs">Edit</button>
-            </div>
+      <div className="space-y-6">
+        {repairs.map((repair) => (
+          <div key={repair.id} className="bg-white p-4 rounded shadow border">
+            <div className="font-semibold mb-1">🏠 {repair.property}</div>
+            <div className="text-gray-700 mb-1">📝 Notes: {repair.notes}</div>
+            <div className="text-gray-700 mb-1">👷 Contractor: {repair.contractor || 'Not assigned'}</div>
+            <div className="text-gray-700 mb-2">📌 Status: <strong>{repair.status}</strong></div>
+
+            <textarea
+              className="border p-2 mb-2 w-full"
+              value={repair.notes}
+              onChange={(e) => updateRepair(repair.id, 'notes', e.target.value)}
+            />
+            <select
+              className="border p-2 mb-2 w-full"
+              value={repair.status}
+              onChange={(e) => updateRepair(repair.id, 'status', e.target.value)}
+            >
+              <option value="pending">Pending</option>
+              <option value="in progress">In Progress</option>
+              <option value="completed">Completed</option>
+            </select>
           </div>
         ))}
       </div>
-
-      {editingRepair && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">✏️ Edit Repair</h2>
-            <input className="w-full mb-3 p-2 border rounded" value={editingRepair.property} onChange={(e) => setEditingRepair({ ...editingRepair, property: e.target.value })} />
-            <input className="w-full mb-3 p-2 border rounded" value={editingRepair.description} onChange={(e) => setEditingRepair({ ...editingRepair, description: e.target.value })} />
-            <input className="w-full mb-4 p-2 border rounded" value={editingRepair.allocatedTo} onChange={(e) => setEditingRepair({ ...editingRepair, allocatedTo: e.target.value })} />
-            <div className="flex justify-end gap-4">
-              <button onClick={() => setEditingRepair(null)} className="bg-gray-400 text-white px-4 py-2 rounded">Cancel</button>
-              <button onClick={saveEdit} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Save</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
