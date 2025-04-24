@@ -1,112 +1,137 @@
-import React, { useState, useEffect } from 'react';
+// PropertyDashboard.jsx - Enhanced with tasks, rents, and repairs overview
+import React, { useEffect, useState } from 'react';
 import { db } from './firebase';
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+import {
+  collection,
+  getDocs,
+  updateDoc,
+  doc,
+  query,
+  where
+} from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 export default function PropertyDashboard() {
-  const [displayItems, setDisplayItems] = useState([]);
-  const [allItems, setAllItems] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [filter, setFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [todayItems, setTodayItems] = useState([]);
+  const [upcomingItems, setUpcomingItems] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [repairs, setRepairs] = useState([]);
+  const auth = getAuth();
+  const user = auth.currentUser;
 
   useEffect(() => {
-    fetchItems();
+    fetchTodayItems();
+    fetchUpcoming();
+    fetchTasks();
+    fetchRepairs();
   }, []);
 
-  useEffect(() => {
-    filterItemsByDate(selectedDate);
-  }, [selectedDate, allItems, filter, searchTerm]);
-
-  const fetchItems = async () => {
-    const querySnapshot = await getDocs(collection(db, 'properties'));
-    const allProperties = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setAllItems(allProperties);
+  const fetchTodayItems = async () => {
+    const now = new Date();
+    const today = now.getDate();
+    const propSnap = await getDocs(collection(db, 'properties'));
+    const allProps = propSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const filtered = allProps.filter(item =>
+      parseInt(item.rentDueDate) === today || parseInt(item.landlordPaymentDueDate) === today
+    );
+    setTodayItems(filtered);
   };
 
-  const filterItemsByDate = (date) => {
-    const day = date.getDate();
-    const tomorrow = new Date(date);
-    tomorrow.setDate(day + 1);
-    const nextDay = tomorrow.getDate();
-
-    const filtered = allItems.filter(item => {
-      const matchRent = parseInt(item.rentDueDate) === day && (filter === 'all' || filter === 'tenant');
-      const matchLandlord = parseInt(item.landlordPaymentDueDate) === day && (filter === 'all' || filter === 'landlord');
-      const matchNextDayRent = parseInt(item.rentDueDate) === nextDay && filter === 'tenant';
-      const matchNextDayLandlord = parseInt(item.landlordPaymentDueDate) === nextDay && filter === 'landlord';
-      const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) || item.tenant?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-      return (matchRent || matchLandlord || matchNextDayRent || matchNextDayLandlord) && matchesSearch;
-    });
-
-    setDisplayItems(filtered);
+  const fetchUpcoming = async () => {
+    const tomorrow = new Date().getDate() + 1;
+    const propSnap = await getDocs(collection(db, 'properties'));
+    const allProps = propSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const filtered = allProps.filter(item =>
+      parseInt(item.rentDueDate) === tomorrow || parseInt(item.landlordPaymentDueDate) === tomorrow
+    );
+    setUpcomingItems(filtered);
   };
 
-  const toggleStatus = async (id, field, currentValue) => {
+  const fetchTasks = async () => {
+    const q = query(collection(db, 'tasks'), where('assignedTo', '==', user?.email));
+    const snapshot = await getDocs(q);
+    setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  };
+
+  const fetchRepairs = async () => {
+    const snapshot = await getDocs(collection(db, 'repairs'));
+    setRepairs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  };
+
+  const toggleStatus = async (id, field) => {
     const ref = doc(db, 'properties', id);
     await updateDoc(ref, {
-      [field]: !currentValue
+      [field]: true
     });
-    fetchItems();
+    fetchTodayItems();
   };
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50">
-      <h1 className="text-3xl font-bold mb-6 text-blue-800">📋 Urban Base Properties - Daily Overview</h1>
+    <div className="p-6">
+      <h1 className="text-3xl font-bold text-blue-800 mb-6">🏠 Dashboard Overview</h1>
 
-      <div className="mb-4">
-        <Calendar onChange={setSelectedDate} value={selectedDate} className="rounded shadow border" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h2 className="text-xl font-semibold mb-2">📅 Due Today</h2>
+          {todayItems.map((item) => (
+            <div key={item.id} className="bg-white p-4 rounded shadow mb-3">
+              {parseInt(item.rentDueDate) === new Date().getDate() && (
+                <div className="mb-2">
+                  <strong>Incoming Rent:</strong> {item.tenant?.name} at {item.name} - £{item.tenant?.rent}
+                  <button
+                    onClick={() => toggleStatus(item.id, 'tenantPaid')}
+                    className={`ml-4 px-2 py-1 text-white rounded ${item.tenantPaid ? 'bg-green-600' : 'bg-red-600'}`}
+                  >
+                    {item.tenantPaid ? 'Paid' : 'Mark Paid'}
+                  </button>
+                </div>
+              )}
+              {parseInt(item.landlordPaymentDueDate) === new Date().getDate() && (
+                <div>
+                  <strong>Outgoing to Landlord:</strong> {item.landlord?.name} - £{item.landlordAmount}
+                  <button
+                    onClick={() => toggleStatus(item.id, 'landlordPaid')}
+                    className={`ml-4 px-2 py-1 text-white rounded ${item.landlordPaid ? 'bg-green-600' : 'bg-red-600'}`}
+                  >
+                    {item.landlordPaid ? 'Paid' : 'Mark Paid'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <h2 className="text-xl font-semibold mb-2">🔜 Tomorrow's Schedule</h2>
+          {upcomingItems.map((item) => (
+            <div key={item.id} className="bg-white p-4 rounded shadow mb-3">
+              {parseInt(item.rentDueDate) === new Date().getDate() + 1 && (
+                <p><strong>Incoming:</strong> {item.tenant?.name} - £{item.tenant?.rent}</p>
+              )}
+              {parseInt(item.landlordPaymentDueDate) === new Date().getDate() + 1 && (
+                <p><strong>Outgoing:</strong> {item.landlord?.name} - £{item.landlordAmount}</p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="flex gap-4 mb-4">
-        <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>All</button>
-        <button onClick={() => setFilter('tenant')} className={`px-4 py-2 rounded ${filter === 'tenant' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Tenants</button>
-        <button onClick={() => setFilter('landlord')} className={`px-4 py-2 rounded ${filter === 'landlord' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Landlords</button>
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-2">🛠 Repairs Overview</h2>
+        {repairs.slice(0, 3).map((repair) => (
+          <div key={repair.id} className="bg-yellow-100 p-4 rounded shadow mb-3">
+            <p><strong>{repair.property}</strong>: {repair.notes}</p>
+            <p className="text-sm text-gray-600">Assigned to: {repair.contractor}</p>
+          </div>
+        ))}
       </div>
 
-      <input
-        type="text"
-        placeholder="Search by property or tenant name"
-        className="mb-6 w-full p-2 border rounded"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
-
-      {displayItems.length === 0 && (
-        <p className="text-gray-600">No rent or payments due on selected date.</p>
-      )}
-
-      <div className="space-y-6">
-        {displayItems.map((item) => (
-          <div key={item.id} className="bg-white p-4 rounded shadow border">
-            {parseInt(item.rentDueDate) === selectedDate.getDate() && (
-              <div className="mb-4">
-                <div className="font-medium text-gray-700">
-                  💰 Inbound Tenant Payment - <strong>{item.tenant?.name}</strong> at <strong>{item.name}</strong>
-                </div>
-                <button
-                  onClick={() => toggleStatus(item.id, 'tenantPaid', item.tenantPaid)}
-                  className={`mt-2 px-3 py-1 text-white rounded ${item.tenantPaid ? 'bg-green-600' : 'bg-red-600'}`}
-                >
-                  {item.tenantPaid ? 'Paid' : 'Mark Paid'}
-                </button>
-              </div>
-            )}
-
-            {parseInt(item.landlordPaymentDueDate) === selectedDate.getDate() && (
-              <div>
-                <div className="font-medium text-gray-700">
-                  💼 Outgoing Landlord Payment - <strong>{item.landlord?.name}</strong> £{item.landlordAmount} for <strong>{item.name}</strong>
-                </div>
-                <button
-                  onClick={() => toggleStatus(item.id, 'landlordPaid', item.landlordPaid)}
-                  className={`mt-2 px-3 py-1 text-white rounded ${item.landlordPaid ? 'bg-green-600' : 'bg-red-600'}`}
-                >
-                  {item.landlordPaid ? 'Paid' : 'Mark Paid'}
-                </button>
-              </div>
-            )}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-2">📝 Your Tasks</h2>
+        {tasks.slice(0, 3).map((task) => (
+          <div key={task.id} className="bg-blue-100 p-4 rounded shadow mb-3">
+            <p className="font-medium">{task.task}</p>
+            <p className="text-sm text-gray-600">Date: {task.date?.toDate?.().toDateString?.() || 'N/A'}</p>
           </div>
         ))}
       </div>
