@@ -1,4 +1,4 @@
-// PropertyDashboard.jsx - Updated rent field fallback
+// PropertyDashboard.jsx - Updated to show certificate expiry alerts
 import React, { useEffect, useState } from 'react';
 import { db } from './firebase';
 import {
@@ -16,6 +16,7 @@ export default function PropertyDashboard() {
   const [upcomingItems, setUpcomingItems] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [repairs, setRepairs] = useState([]);
+  const [expiringCerts, setExpiringCerts] = useState([]);
   const auth = getAuth();
   const user = auth.currentUser;
 
@@ -24,6 +25,7 @@ export default function PropertyDashboard() {
     fetchUpcoming();
     fetchTasks();
     fetchRepairs();
+    fetchExpiringCertificates();
   }, []);
 
   const fetchTodayItems = async () => {
@@ -58,6 +60,17 @@ export default function PropertyDashboard() {
     setRepairs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
   };
 
+  const fetchExpiringCertificates = async () => {
+    const snapshot = await getDocs(collection(db, 'certificates'));
+    const now = new Date();
+    const upcoming = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(cert => {
+      const expiryDate = cert.expiry?.seconds ? new Date(cert.expiry.seconds * 1000) : new Date(cert.expiry);
+      const diff = (expiryDate - now) / (1000 * 60 * 60 * 24);
+      return diff >= 0 && diff <= 7;
+    });
+    setExpiringCerts(upcoming);
+  };
+
   const toggleStatus = async (id, field, currentValue) => {
     const ref = doc(db, 'properties', id);
     await updateDoc(ref, {
@@ -69,6 +82,18 @@ export default function PropertyDashboard() {
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold text-blue-800 mb-6">🏠 Dashboard Overview</h1>
+
+      {expiringCerts.length > 0 && (
+        <div className="bg-red-100 border border-red-400 p-4 rounded mb-6">
+          <h2 className="text-lg font-semibold text-red-700 mb-2">⚠️ Certificates Expiring Soon</h2>
+          {expiringCerts.map(cert => (
+            <div key={cert.id} className="mb-1">
+              {cert.property} - {cert.type} -{' '}
+              {new Date(cert.expiry?.seconds * 1000).toLocaleDateString()}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>

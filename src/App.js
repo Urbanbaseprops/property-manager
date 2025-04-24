@@ -8,6 +8,9 @@ import Tasks from './Tasks';
 import Login from './Login';
 import Layout from './Layout';
 import Contractors from './Contractors'; // Make sure the file exists in src
+import Certificates from './Certificates';
+
+<Route path="/certificates" element={user ? <Certificates /> : <Navigate to="/login" />} />
 
 
 function App() {
