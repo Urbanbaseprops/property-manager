@@ -12,6 +12,12 @@ export default function Repairs() {
   const [repairs, setRepairs] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [contractors, setContractors] = useState([
+    { name: 'John Plumbing Co.', details: 'john@plumbing.com | 07912345678' },
+    { name: 'Bright Electricians', details: 'bright@electric.com | 07898765432' },
+    { name: 'Ace Builders Ltd', details: 'info@acebuilders.co.uk | 07711223344' }
+  ]);
+
   const [newRepair, setNewRepair] = useState({
     property: '',
     notes: '',
@@ -20,7 +26,7 @@ export default function Repairs() {
     dateReported: '',
     tenantContact: '',
     status: 'pending',
-    photoUrl: ''
+    photo: null
   });
 
   useEffect(() => {
@@ -35,7 +41,21 @@ export default function Repairs() {
 
   const handleAddRepair = async () => {
     if (!newRepair.property || !newRepair.notes) return;
-    await addDoc(collection(db, 'repairs'), newRepair);
+
+    let photoUrl = '';
+    if (newRepair.photo) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        photoUrl = reader.result;
+        await addDoc(collection(db, 'repairs'), { ...newRepair, photoUrl });
+        fetchRepairs();
+      };
+      reader.readAsDataURL(newRepair.photo);
+    } else {
+      await addDoc(collection(db, 'repairs'), { ...newRepair, photoUrl });
+      fetchRepairs();
+    }
+
     setNewRepair({
       property: '',
       notes: '',
@@ -44,15 +64,34 @@ export default function Repairs() {
       dateReported: '',
       tenantContact: '',
       status: 'pending',
-      photoUrl: ''
+      photo: null
     });
-    fetchRepairs();
   };
 
   const updateRepair = async (id, field, value) => {
     const ref = doc(db, 'repairs', id);
     await updateDoc(ref, { [field]: value });
     fetchRepairs();
+  };
+
+  const handleContractorChange = (value) => {
+    const selected = contractors.find(c => c.name === value);
+    setNewRepair({
+      ...newRepair,
+      contractor: selected.name,
+      contractorDetails: selected.details
+    });
+  };
+
+  const handleSendToContractor = (repair) => {
+    const message = `Repair Job Assigned\nProperty: ${repair.property}\nNotes: ${repair.notes}\nTenant Contact: ${repair.tenantContact}\nDate Reported: ${repair.dateReported}`;
+    const phoneNumber = repair.contractorDetails.match(/(07\d{9})/); // UK format
+    if (phoneNumber) {
+      const whatsappUrl = `https://wa.me/44${phoneNumber[0].slice(1)}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+    } else {
+      alert('No valid phone number found for WhatsApp message.');
+    }
   };
 
   const filteredRepairs = repairs.filter(repair => {
@@ -97,11 +136,16 @@ export default function Repairs() {
         <h2 className="text-xl font-semibold mb-4">Add New Repair</h2>
         <input type="text" placeholder="Property Address" className="border p-2 mb-2 w-full" value={newRepair.property} onChange={(e) => setNewRepair({ ...newRepair, property: e.target.value })} />
         <textarea placeholder="Repair Notes" className="border p-2 mb-2 w-full" value={newRepair.notes} onChange={(e) => setNewRepair({ ...newRepair, notes: e.target.value })} />
-        <input type="text" placeholder="Contractor Name" className="border p-2 mb-2 w-full" value={newRepair.contractor} onChange={(e) => setNewRepair({ ...newRepair, contractor: e.target.value })} />
-        <input type="text" placeholder="Contractor Contact Details" className="border p-2 mb-2 w-full" value={newRepair.contractorDetails} onChange={(e) => setNewRepair({ ...newRepair, contractorDetails: e.target.value })} />
+        <select className="border p-2 mb-2 w-full" value={newRepair.contractor} onChange={(e) => handleContractorChange(e.target.value)}>
+          <option value="">Select Contractor</option>
+          {contractors.map((c, idx) => (
+            <option key={idx} value={c.name}>{c.name}</option>
+          ))}
+        </select>
+        <input type="text" placeholder="Contractor Contact Details" className="border p-2 mb-2 w-full" value={newRepair.contractorDetails} readOnly />
         <input type="date" placeholder="Date Reported" className="border p-2 mb-2 w-full" value={newRepair.dateReported} onChange={(e) => setNewRepair({ ...newRepair, dateReported: e.target.value })} />
         <input type="text" placeholder="Tenant Contact Info" className="border p-2 mb-2 w-full" value={newRepair.tenantContact} onChange={(e) => setNewRepair({ ...newRepair, tenantContact: e.target.value })} />
-        <input type="text" placeholder="Photo URL (optional)" className="border p-2 mb-2 w-full" value={newRepair.photoUrl} onChange={(e) => setNewRepair({ ...newRepair, photoUrl: e.target.value })} />
+        <input type="file" className="border p-2 mb-2 w-full" accept="image/*" onChange={(e) => setNewRepair({ ...newRepair, photo: e.target.files[0] })} />
         <select className="border p-2 mb-2 w-full" value={newRepair.status} onChange={(e) => setNewRepair({ ...newRepair, status: e.target.value })}>
           <option value="pending">Pending</option>
           <option value="in progress">In Progress</option>
@@ -125,6 +169,12 @@ export default function Repairs() {
               <option value="in progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
+            <button
+              onClick={() => handleSendToContractor(repair)}
+              className="bg-green-700 text-white px-3 py-1 rounded hover:bg-green-800"
+            >
+              📤 Send to Contractor
+            </button>
           </div>
         ))}
       </div>
