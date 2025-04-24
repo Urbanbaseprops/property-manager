@@ -13,17 +13,15 @@ export default function Layout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <aside className="w-64 bg-black text-white p-6 flex flex-col justify-between">
+    <div className="flex min-h-screen">
+      <aside className="w-64 bg-black text-white p-6 space-y-4 flex flex-col justify-between">
         <div>
-          <h1 className="text-xl font-bold text-center text-white mb-6">Urban Base Properties</h1>
+          <h1 className="text-xl font-bold text-blue-400 mb-6">Urban Base Properties</h1>
           <nav className="space-y-3">
-            <Link to="/dashboard" className="block px-3 py-2 rounded hover:bg-blue-600 text-blue-300 hover:text-white">🏠 Dashboard</Link>
-            <Link to="/properties" className="block px-3 py-2 rounded hover:bg-blue-600 text-blue-300 hover:text-white">📋 Properties</Link>
-            <Link to="/repairs" className="block px-3 py-2 rounded hover:bg-blue-600 text-blue-300 hover:text-white">🛠 Repairs</Link>
-            <Link to="/contractors" className="block text-blue-400 hover:text-white">🔧 Contractors</Link>
-            <Link to="/tasks">📝 Tasks</Link>
-
+            <Link to="/dashboard" className="block text-blue-400 hover:text-white">🏠 Dashboard</Link>
+            <Link to="/properties" className="block text-blue-400 hover:text-white">📋 Properties</Link>
+            <Link to="/repairs" className="block text-blue-400 hover:text-white">🛠 Repairs</Link>
+            <Link to="/tasks" className="block text-blue-400 hover:text-white">📝 Tasks</Link>
           </nav>
         </div>
         <button
@@ -34,9 +32,11 @@ export default function Layout() {
         </button>
       </aside>
 
-      <main className="flex-1 p-6 overflow-y-auto bg-gray-50">
-        <Outlet />
-      </main>
+      <div className="flex-1 bg-gray-100">
+        <main className="p-6 max-w-6xl mx-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
