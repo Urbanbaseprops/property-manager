@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import Contractors from './Contractors';
+import Tasks from './Tasks';
+
+<Route path="/tasks" element={<Tasks />} />
 
 import Login from './Login';
 import PropertyDashboard from './PropertyDashboard';
