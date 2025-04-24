@@ -5,19 +5,16 @@ import {
   getDocs,
   addDoc,
   updateDoc,
-  doc
+  deleteDoc,
+  doc,
+  setDoc
 } from 'firebase/firestore';
 
 export default function Repairs() {
   const [repairs, setRepairs] = useState([]);
+  const [contractors, setContractors] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [contractors, setContractors] = useState([
-    { name: 'John Plumbing Co.', details: 'john@plumbing.com | 07912345678' },
-    { name: 'Bright Electricians', details: 'bright@electric.com | 07898765432' },
-    { name: 'Ace Builders Ltd', details: 'info@acebuilders.co.uk | 07711223344' }
-  ]);
-
   const [newContractor, setNewContractor] = useState({ name: '', details: '' });
   const [newRepair, setNewRepair] = useState({
     property: '',
@@ -32,12 +29,37 @@ export default function Repairs() {
 
   useEffect(() => {
     fetchRepairs();
+    fetchContractors();
   }, []);
 
   const fetchRepairs = async () => {
     const querySnapshot = await getDocs(collection(db, 'repairs'));
     const repairList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     setRepairs(repairList);
+  };
+
+  const fetchContractors = async () => {
+    const querySnapshot = await getDocs(collection(db, 'contractors'));
+    const contractorList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setContractors(contractorList);
+  };
+
+  const handleAddContractor = async () => {
+    if (newContractor.name && newContractor.details) {
+      const contractorRef = doc(db, 'contractors', newContractor.name);
+      await setDoc(contractorRef, newContractor);
+      setNewContractor({ name: '', details: '' });
+      fetchContractors();
+    }
+  };
+
+  const handleContractorChange = (value) => {
+    const selected = contractors.find(c => c.name === value);
+    setNewRepair({
+      ...newRepair,
+      contractor: selected?.name || '',
+      contractorDetails: selected?.details || ''
+    });
   };
 
   const handleAddRepair = async () => {
@@ -75,20 +97,10 @@ export default function Repairs() {
     fetchRepairs();
   };
 
-  const handleContractorChange = (value) => {
-    const selected = contractors.find(c => c.name === value);
-    setNewRepair({
-      ...newRepair,
-      contractor: selected.name,
-      contractorDetails: selected.details
-    });
-  };
-
-  const handleAddContractor = () => {
-    if (newContractor.name && newContractor.details) {
-      setContractors([...contractors, newContractor]);
-      setNewContractor({ name: '', details: '' });
-    }
+  const deleteRepair = async (id) => {
+    const ref = doc(db, 'repairs', id);
+    await deleteDoc(ref);
+    fetchRepairs();
   };
 
   const handleSendToContractor = (repair) => {
@@ -141,7 +153,7 @@ export default function Repairs() {
       </div>
 
       <div className="bg-white p-4 rounded shadow mb-8">
-        <h2 className="text-xl font-semibold mb-4">Add Contractor</h2>
+        <h2 className="text-xl font-semibold mb-4">Add / Edit Contractor</h2>
         <input
           type="text"
           placeholder="Contractor Name"
@@ -156,7 +168,7 @@ export default function Repairs() {
           value={newContractor.details}
           onChange={(e) => setNewContractor({ ...newContractor, details: e.target.value })}
         />
-        <button onClick={handleAddContractor} className="bg-green-600 text-white px-4 py-2 rounded">Add Contractor</button>
+        <button onClick={handleAddContractor} className="bg-green-600 text-white px-4 py-2 rounded">Save Contractor</button>
       </div>
 
       <div className="bg-white p-4 rounded shadow mb-8">
@@ -196,12 +208,14 @@ export default function Repairs() {
               <option value="in progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
-            <button
-              onClick={() => handleSendToContractor(repair)}
-              className="bg-green-700 text-white px-3 py-1 rounded hover:bg-green-800"
-            >
-              📤 Send to Contractor
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => handleSendToContractor(repair)} className="bg-green-700 text-white px-3 py-1 rounded hover:bg-green-800">
+                📤 Send to Contractor
+              </button>
+              <button onClick={() => deleteRepair(repair.id)} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
+                🗑 Delete
+              </button>
+            </div>
           </div>
         ))}
       </div>
