@@ -18,6 +18,7 @@ export default function Repairs() {
     { name: 'Ace Builders Ltd', details: 'info@acebuilders.co.uk | 07711223344' }
   ]);
 
+  const [newContractor, setNewContractor] = useState({ name: '', details: '' });
   const [newRepair, setNewRepair] = useState({
     property: '',
     notes: '',
@@ -83,6 +84,13 @@ export default function Repairs() {
     });
   };
 
+  const handleAddContractor = () => {
+    if (newContractor.name && newContractor.details) {
+      setContractors([...contractors, newContractor]);
+      setNewContractor({ name: '', details: '' });
+    }
+  };
+
   const handleSendToContractor = (repair) => {
     const message = `Repair Job Assigned\nProperty: ${repair.property}\nNotes: ${repair.notes}\nTenant Contact: ${repair.tenantContact}\nDate Reported: ${repair.dateReported}`;
     const phoneNumber = repair.contractorDetails.match(/(07\d{9})/); // UK format
@@ -130,6 +138,25 @@ export default function Repairs() {
           <option value="in progress">In Progress</option>
           <option value="completed">Completed</option>
         </select>
+      </div>
+
+      <div className="bg-white p-4 rounded shadow mb-8">
+        <h2 className="text-xl font-semibold mb-4">Add Contractor</h2>
+        <input
+          type="text"
+          placeholder="Contractor Name"
+          className="border p-2 mb-2 w-full"
+          value={newContractor.name}
+          onChange={(e) => setNewContractor({ ...newContractor, name: e.target.value })}
+        />
+        <input
+          type="text"
+          placeholder="Contractor Details"
+          className="border p-2 mb-2 w-full"
+          value={newContractor.details}
+          onChange={(e) => setNewContractor({ ...newContractor, details: e.target.value })}
+        />
+        <button onClick={handleAddContractor} className="bg-green-600 text-white px-4 py-2 rounded">Add Contractor</button>
       </div>
 
       <div className="bg-white p-4 rounded shadow mb-8">
