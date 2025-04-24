@@ -10,6 +10,8 @@ import {
 
 export default function Repairs() {
   const [repairs, setRepairs] = useState([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [newRepair, setNewRepair] = useState({
     property: '',
     notes: '',
@@ -53,9 +55,43 @@ export default function Repairs() {
     fetchRepairs();
   };
 
+  const filteredRepairs = repairs.filter(repair => {
+    const matchesSearch =
+      repair.property.toLowerCase().includes(search.toLowerCase()) ||
+      repair.contractor.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || repair.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusColor = (status) => {
+    if (status === 'completed') return 'bg-green-200';
+    if (status === 'in progress') return 'bg-yellow-200';
+    return 'bg-red-200';
+  };
+
   return (
     <div className="p-6 min-h-screen bg-gray-50">
       <h1 className="text-3xl font-bold mb-6 text-blue-800">🔧 Repairs Management</h1>
+
+      <div className="mb-6 flex gap-4">
+        <input
+          type="text"
+          placeholder="Search repairs..."
+          className="p-2 border rounded w-1/2"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className="p-2 border rounded"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All</option>
+          <option value="pending">Pending</option>
+          <option value="in progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
 
       <div className="bg-white p-4 rounded shadow mb-8">
         <h2 className="text-xl font-semibold mb-4">Add New Repair</h2>
@@ -75,8 +111,8 @@ export default function Repairs() {
       </div>
 
       <div className="space-y-6">
-        {repairs.map((repair) => (
-          <div key={repair.id} className="bg-white p-4 rounded shadow border">
+        {filteredRepairs.map((repair) => (
+          <div key={repair.id} className={`p-4 rounded shadow border ${getStatusColor(repair.status)}`}>
             <div className="font-semibold mb-1">🏠 {repair.property}</div>
             <input className="border p-2 mb-2 w-full" value={repair.notes} onChange={(e) => updateRepair(repair.id, 'notes', e.target.value)} />
             <input className="border p-2 mb-2 w-full" value={repair.contractor} onChange={(e) => updateRepair(repair.id, 'contractor', e.target.value)} />
