@@ -7,6 +7,8 @@ import Repairs from './Repairs';
 import Tasks from './Tasks';
 import Login from './Login';
 import Layout from './Layout';
+import Contractors from './Contractors'; // Make sure the file exists in src
+
 
 function App() {
   const [user, setUser] = useState(null);
@@ -37,6 +39,7 @@ function App() {
           <Route path="properties" element={<Properties />} />
           <Route path="repairs" element={<Repairs />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="contractors" element={<Contractors />} />
         </Route>
         <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} />} />
       </Routes>
