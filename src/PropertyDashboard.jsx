@@ -1,63 +1,26 @@
-// src/PropertyDashboard.jsx
+// PropertyDashboard.jsx - updated with WhatsApp & Email buttons
 import React, { useEffect, useState } from 'react';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
 import { db } from './firebase';
-import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 export default function PropertyDashboard() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [itemsDue, setItemsDue] = useState([]);
-  const [expiringCerts, setExpiringCerts] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [repairs, setRepairs] = useState([]);
-
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const [todayItems, setTodayItems] = useState([]);
 
   useEffect(() => {
-    fetchAllData();
-  }, [selectedDate]);
+    fetchTodayItems();
+  }, []);
 
-  const fetchAllData = async () => {
-    await fetchItemsDue();
-    await fetchTasks();
-    await fetchRepairs();
-    await fetchExpiringCertificates();
-  };
-
-  const fetchItemsDue = async () => {
-    const selectedDay = selectedDate.getDate();
+  const fetchTodayItems = async () => {
+    const now = new Date();
+    const today = now.getDate();
     const propSnap = await getDocs(collection(db, 'properties'));
     const allProps = propSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     const filtered = allProps.filter(item =>
-      parseInt(item.rentDueDate) === selectedDay || parseInt(item.landlordPaymentDueDate) === selectedDay
+      parseInt(item.rentDueDate) === today
     );
-    setItemsDue(filtered);
-  };
-
-  const fetchTasks = async () => {
-    const q = query(collection(db, 'tasks'), where('assignedTo', '==', user?.email));
-    const snapshot = await getDocs(q);
-    setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-  };
-
-  const fetchRepairs = async () => {
-    const snapshot = await getDocs(collection(db, 'repairs'));
-    setRepairs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-  };
-
-  const fetchExpiringCertificates = async () => {
-    const snapshot = await getDocs(collection(db, 'certificates'));
-    const now = new Date();
-    const upcoming = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(cert => {
-      const expiryDate = cert.expiry?.seconds ? new Date(cert.expiry.seconds * 1000) : new Date(cert.expiry);
-      const diff = (expiryDate - now) / (1000 * 60 * 60 * 24);
-      return diff >= 0 && diff <= 7;
-    });
-    setExpiringCerts(upcoming);
+    setTodayItems(filtered);
   };
 
   const toggleStatus = async (id, field, currentValue) => {
@@ -65,91 +28,55 @@ export default function PropertyDashboard() {
     await updateDoc(ref, {
       [field]: !currentValue
     });
-    fetchItemsDue();
+    fetchTodayItems();
+  };
+
+  const sendWhatsApp = (tenant) => {
+    const message = `Hello ${tenant.tenantName},\n\nThis is a reminder that your rent of £${tenant.tenantRent} for ${tenant.name} is due today.\n\nPlease send proof of payment once made.\n\nThank you,\nUrban Base Properties.`;
+    window.open(`https://wa.me/${tenant.tenantContact}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const sendEmail = (tenant) => {
+    const subject = `Rent Due Reminder - ${tenant.name}`;
+    const body = `Hello ${tenant.tenantName},\n\nThis is a reminder that your rent of £${tenant.tenantRent} for ${tenant.name} is due today.\n\nPlease send proof of payment once made.\n\nThank you,\nUrban Base Properties.`;
+    window.location.href = `mailto:${tenant.tenantContact}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   return (
     <div className="p-6">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-blue-800">🏠 Dashboard Overview</h1>
-        <div className="mt-4 md:mt-0">
-          <Calendar value={selectedDate} onChange={setSelectedDate} className="rounded shadow-lg" />
-        </div>
-      </div>
-
-      {expiringCerts.length > 0 && (
-        <div className="bg-red-100 border border-red-400 p-4 rounded mb-6">
-          <h2 className="text-lg font-semibold text-red-700 mb-2">⚠️ Certificates Expiring Soon</h2>
-          {expiringCerts.map(cert => (
-            <div key={cert.id} className="mb-2">
-              <strong>{cert.property}</strong> - {cert.type}<br />
-              Expiry: {new Date(cert.expiry?.seconds * 1000).toLocaleDateString()} | 
-              Issued: {new Date(cert.issued?.seconds * 1000).toLocaleDateString()}<br />
-              Ref: {cert.reference || 'N/A'}
-            </div>
-          ))}
-        </div>
-      )}
+      <h1 className="text-3xl font-bold text-blue-800 mb-6">🏠 Dashboard Overview</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <h2 className="text-xl font-semibold mb-2">📅 Rents / Payments on {selectedDate.toDateString()}</h2>
-          {itemsDue.length === 0 && (
-            <p className="text-gray-500">Nothing due on this day.</p>
-          )}
-          {itemsDue.map((item) => (
-            <div key={item.id} className="bg-white p-4 rounded shadow mb-3">
-              {parseInt(item.rentDueDate) === selectedDate.getDate() && (
-                <div className="mb-2">
-                  <strong>Incoming Rent:</strong> {item.tenant?.name} - £{item.tenant?.rent || item.tenantRent || 'N/A'}
-                  <button
-                    onClick={() => toggleStatus(item.id, 'tenantPaid', item.tenantPaid)}
-                    className={`ml-4 px-2 py-1 text-white rounded ${item.tenantPaid ? 'bg-green-600' : 'bg-red-600'}`}
-                  >
-                    {item.tenantPaid ? 'Paid' : 'Mark Paid'}
-                  </button>
-                </div>
-              )}
-              {parseInt(item.landlordPaymentDueDate) === selectedDate.getDate() && (
-                <div>
-                  <strong>Outgoing to Landlord:</strong> {item.landlord?.name} - £{item.landlordAmount || 'N/A'}
-                  <button
-                    onClick={() => toggleStatus(item.id, 'landlordPaid', item.landlordPaid)}
-                    className={`ml-4 px-2 py-1 text-white rounded ${item.landlordPaid ? 'bg-green-600' : 'bg-red-600'}`}
-                  >
-                    {item.landlordPaid ? 'Paid' : 'Mark Paid'}
-                  </button>
-                </div>
-              )}
+          <h2 className="text-xl font-semibold mb-2">📅 Rent Due Today</h2>
+          {todayItems.map((tenant) => (
+            <div key={tenant.id} className="bg-white p-4 rounded shadow mb-3">
+              <div className="mb-2">
+                <strong>{tenant.tenantName}</strong> owes £{tenant.tenantRent} for {tenant.name}
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => toggleStatus(tenant.id, 'tenantPaid', tenant.tenantPaid)}
+                  className={`px-3 py-1 text-white rounded ${tenant.tenantPaid ? 'bg-green-600' : 'bg-red-600'}`}
+                >
+                  {tenant.tenantPaid ? 'Paid' : 'Mark Paid'}
+                </button>
+                <button
+                  onClick={() => sendEmail(tenant)}
+                  className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded"
+                >
+                  📩 Email
+                </button>
+                <button
+                  onClick={() => sendWhatsApp(tenant)}
+                  className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded"
+                >
+                  💬 WhatsApp
+                </button>
+              </div>
             </div>
           ))}
         </div>
-
-        <div>
-          <h2 className="text-xl font-semibold mb-2">🛠 Repairs for {selectedDate.toDateString()}</h2>
-          {repairs.length === 0 && (
-            <p className="text-gray-500">No repairs listed.</p>
-          )}
-          {repairs.slice(0, 5).map((repair) => (
-            <div key={repair.id} className="bg-yellow-100 p-4 rounded shadow mb-3">
-              <p><strong>{repair.property}</strong>: {repair.notes}</p>
-              <p className="text-sm text-gray-600">Assigned to: {repair.contractor}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-2">📝 Your Tasks</h2>
-        {tasks.length === 0 && (
-          <p className="text-gray-500">No tasks for you yet!</p>
-        )}
-        {tasks.slice(0, 5).map((task) => (
-          <div key={task.id} className="bg-blue-100 p-4 rounded shadow mb-3">
-            <p className="font-medium">{task.task}</p>
-            <p className="text-sm text-gray-600">Date: {task.date?.toDate?.().toDateString?.() || 'N/A'}</p>
-          </div>
-        ))}
       </div>
     </div>
   );
