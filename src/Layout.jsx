@@ -24,6 +24,7 @@ export default function Layout() {
             <Link to="/tasks" className="block text-blue-400 hover:text-white">📝 Tasks</Link>
             <Link to="/contractors" className="block text-blue-400 hover:text-white">👷 Contractors</Link>
             <Link to="/certificates" className="block text-blue-400 hover:text-white">📄 Certificates</Link>
+            <Link to="/reminders" className="block text-blue-400 hover:text-white">🔔 Rent Reminders</Link>
           </nav>
         </div>
         <button
